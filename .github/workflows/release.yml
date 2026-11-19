@@ -72,10 +72,11 @@ jobs:
           foreach ($icon in "StoreLogo", "Square44x44Logo", "Square150x150Logo") {
             Copy-Item "src-tauri\icons\$icon.png" "$package\Assets\"
           }
-          # The engine the app would download, checked against the same hash.
+          # The engine the Windows app would download, checked against the same hash.
           $engine = Get-Content src-tauri\src\engine.rs -Raw
-          $url = [regex]::Match($engine, 'ZIP_URL: &str = "([^"]+)"').Groups[1].Value
-          $sha = [regex]::Match($engine, 'ZIP_SHA256: &str = "([0-9a-f]+)"').Groups[1].Value
+          $windows = [regex]::Match($engine, '(?s)#\[cfg\(windows\)\]\s*pub const DOWNLOAD: Download = Download \{\s*url: "([^"]+)",\s*sha256: "([0-9a-f]+)"')
+          $url = $windows.Groups[1].Value
+          $sha = $windows.Groups[2].Value
           if (-not $url -or -not $sha) { throw "Couldn't read the engine's address and hash from engine.rs" }
           Invoke-WebRequest $url -OutFile engine.zip
           $got = (Get-FileHash engine.zip -Algorithm SHA256).Hash.ToLower()
