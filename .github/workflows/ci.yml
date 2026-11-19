@@ -33,12 +33,18 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
+      # A cached whisper.cpp build remembers where the compiler was, which moves when GitHub updates
+      # its machines, and CMake then refuses to build. So each machine image keeps its own cache.
+      - id: image
+        shell: bash
+        run: echo "version=${ImageOS}-${ImageVersion}" >> "$GITHUB_OUTPUT"
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
           # The speech library unpacks its files here, and a rebuild from cache needs them.
           cache-directories: src-tauri/target/sherpa-onnx-prebuilt
           prefix-key: v1-rust
+          key: ${{ steps.image.outputs.version }}
       - name: Clippy
         run: cargo clippy --all-targets -- -D warnings
       - name: Tests
