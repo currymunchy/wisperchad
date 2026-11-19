@@ -1,0 +1,174 @@
+name: Release
+
+# Push a version tag like v0.11.27 to test and build the Windows installer, the Microsoft Store
+# package and the Mac app, and publish the installers as the latest release. The website's Download
+# buttons always fetch the latest release's wisperChad-Setup.exe and wisperChad.dmg.
+#
+# Run it by hand (Actions, then Release, then Run workflow) to build without releasing. The files
+# are on the run's page. The Store package is only ever there, for uploading to Partner Center.
+on:
+  push:
+    tags: ["v[0-9]*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    name: Windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          # The speech library unpacks its files here, and a rebuild from cache needs them.
+          cache-directories: src-tauri/target/sherpa-onnx-prebuilt
+          prefix-key: v1-rust
+      - run: npm ci
+      # From src-tauri, so cargo reads src-tauri/.cargo/config.toml and links the static C runtime.
+      - name: Test
+        working-directory: src-tauri
+        run: cargo test --release
+      - name: Check Whisper runs on any PC with AVX2
+        shell: powershell
+        working-directory: src-tauri
+        # Built once for a build machine with AVX-512, Whisper crashed every PC without it. AVX-512
+        # code uses zmm registers, written like %zmm0. Function names hold ZMM too, so the case and
+        # the number count.
+        run: |
+          $ErrorActionPreference = "Stop"
+          $libs = @(Get-ChildItem target\release\build -Recurse -Filter ggml-cpu.lib)
+          if ($libs.Count -eq 0) { throw "Couldn't find whisper.cpp's ggml-cpu.lib to check" }
+          foreach ($lib in $libs) {
+            $ErrorActionPreference = "Continue"
+            $code = & "C:\Program Files\LLVM\bin\llvm-objdump.exe" -d $lib.FullName 2>$null
+            $read = $LASTEXITCODE
+            $ErrorActionPreference = "Stop"
+            # Built for AVX2, its code uses ymm registers; none at all means it wasn't read.
+            if ($read -ne 0 -or -not ($code -cmatch '\bymm[0-9]')) { throw "Couldn't read the instructions in $($lib.FullName)" }
+            $zmm = $code | Select-String -CaseSensitive -Pattern '\bzmm[0-9]' | Select-Object -First 1
+            if ($zmm) { throw "Whisper was built with AVX-512 instructions, which most PCs lack: $zmm" }
+            Write-Host "Whisper is built for AVX2, with no AVX-512: $($lib.FullName)"
+          }
+      - name: Build the installer
+        run: npx tauri build --bundles nsis
+      - name: Make the Microsoft Store package
+        shell: powershell
+        # The same app, with the writing engine inside: Store apps mustn't download code to run.
+        # The Store signs the package when it's uploaded. Its version needs four parts.
+        run: |
+          $ErrorActionPreference = "Stop"
+          $ProgressPreference = "SilentlyContinue"
+          $version = (Get-Content src-tauri\tauri.conf.json -Raw | ConvertFrom-Json).version + ".0"
+          $package = "msix-package"
+          New-Item -ItemType Directory -Force "$package\Assets", "$package\engine" | Out-Null
+          Copy-Item src-tauri\target\release\wisperchad.exe $package\
+          foreach ($icon in "StoreLogo", "Square44x44Logo", "Square150x150Logo") {
+            Copy-Item "src-tauri\icons\$icon.png" "$package\Assets\"
+          }
+          # The engine the app would download, checked against the same hash.
+          $engine = Get-Content src-tauri\src\engine.rs -Raw
+          $url = [regex]::Match($engine, 'ZIP_URL: &str = "([^"]+)"').Groups[1].Value
+          $sha = [regex]::Match($engine, 'ZIP_SHA256: &str = "([0-9a-f]+)"').Groups[1].Value
+          if (-not $url -or -not $sha) { throw "Couldn't read the engine's address and hash from engine.rs" }
+          Invoke-WebRequest $url -OutFile engine.zip
+          $got = (Get-FileHash engine.zip -Algorithm SHA256).Hash.ToLower()
+          if ($got -ne $sha) { throw "The engine download doesn't match its hash: $got" }
+          Expand-Archive engine.zip -DestinationPath "$package\engine"
+          if (-not (Test-Path "$package\engine\llama-server.exe")) { throw "llama-server.exe isn't at the top of the engine zip" }
+          (Get-Content packaging\AppxManifest.xml -Raw).Replace("VERSION", $version) | Set-Content "$package\AppxManifest.xml" -Encoding utf8
+          $makeappx = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin" -Recurse -Filter makeappx.exe |
+            Where-Object { $_.FullName -match '\\x64\\' } | Sort-Object FullName -Descending | Select-Object -First 1
+          if (-not $makeappx) { throw "Couldn't find makeappx.exe from the Windows SDK" }
+          New-Item -ItemType Directory -Force out | Out-Null
+          & $makeappx.FullName pack /d $package /p "out\wisperChad_$($version)_x64.msix" /o
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Copy-Item src-tauri\target\release\bundle\nsis\*-setup.exe out\wisperChad-Setup.exe
+          Get-ChildItem out
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: out/*
+          if-no-files-found: error
+
+  mac:
+    name: Mac (Apple chip)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          cache-directories: src-tauri/target/sherpa-onnx-prebuilt
+          prefix-key: v1-rust
+      - run: npm ci
+      - name: Test
+        working-directory: src-tauri
+        run: cargo test --release
+      - name: Check Whisper runs on every Apple chip
+        working-directory: src-tauri
+        # Built for a newer chip, Whisper would use instructions the M1 lacks, like smmla and bfdot.
+        run: |
+          lib=$(find target/release/build -name libggml-cpu.a | head -n 1)
+          test -n "$lib" || { echo "Couldn't find whisper.cpp's libggml-cpu.a to check"; exit 1; }
+          objdump -d "$lib" > "$RUNNER_TEMP/ggml-cpu.txt" || true
+          newer_only='smmla|ummla|usmmla|usdot|sudot|bfdot|bfmmla|bfmlalb|bfmlalt|bfcvt|bfcvtn|bfcvtn2'
+          if grep -E -w -q "$newer_only" "$RUNNER_TEMP/ggml-cpu.txt"; then
+            grep -E -w "$newer_only" "$RUNNER_TEMP/ggml-cpu.txt" | head -n 3
+            echo "Whisper was built with instructions the M1 lacks"
+            exit 1
+          fi
+          echo "Whisper is built for every Apple chip: $lib"
+      - name: Build the app
+        run: npx tauri build --bundles app,dmg
+      # Without its microphone text, macOS stops the app the moment it asks for the microphone, and
+      # the hardened runtime hands it silence unless it's entitled to the microphone.
+      - name: Check the app can ask for the microphone
+        run: |
+          plutil -p src-tauri/target/release/bundle/macos/wisperChad.app/Contents/Info.plist | grep NSMicrophoneUsageDescription
+          codesign -d --entitlements - src-tauri/target/release/bundle/macos/wisperChad.app 2>&1 | grep com.apple.security.device.audio-input
+      - name: Name the file
+        run: |
+          mkdir out
+          cp src-tauri/target/release/bundle/dmg/*.dmg out/wisperChad.dmg
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mac
+          path: out/*
+          if-no-files-found: error
+
+  release:
+    name: Publish the release
+    needs: [windows, mac]
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: out
+          merge-multiple: true
+      - id: version
+        run: echo "number=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+      - uses: softprops/action-gh-release@v2
+        with:
+          name: wisperChad ${{ steps.version.outputs.number }}
+          # A tag like v0.12.0-rc.1 is a test version, which the website's buttons skip.
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          files: |
+            out/wisperChad-Setup.exe
+            out/wisperChad.dmg
+          body: |
+            Free, private voice dictation and reply writing for Windows and Mac. Get it from https://currymunchy.github.io/wisperchad-app/
+
+            - **Windows:** wisperChad-Setup.exe (Windows 10 and 11)
+            - **Mac:** wisperChad.dmg (Apple chip, macOS 13.3 or newer)

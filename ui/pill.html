@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>wisperChad status</title>
+  <script src="theme.js"></script>
+  <style>
+    :root {
+      --pill: rgba(255, 254, 253, 0.97); --text: #1a1a1a; --edge: rgba(26, 26, 26, 0.16);
+      --accent: #994ea8; --track: rgba(26, 26, 26, 0.2); --bad: #b3382c;
+    }
+    :root[data-theme="dark"] {
+      --pill: rgba(26, 26, 26, 0.96); --text: #fffefd; --edge: rgba(255, 255, 255, 0.14);
+      --accent: #cf9adb; --track: rgba(255, 255, 255, 0.25); --bad: #ff7b6e;
+    }
+    html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; user-select: none; }
+    body { display: flex; align-items: center; justify-content: center; font: 600 13px system-ui, "Segoe UI", sans-serif; }
+    .pill {
+      display: flex; align-items: center; gap: 10px;
+      background: var(--pill); color: var(--text);
+      border: 1px solid var(--edge); border-radius: 999px;
+      padding: 9px 16px; min-width: 150px; justify-content: center;
+    }
+    .bars { display: flex; gap: 3px; align-items: center; height: 18px; }
+    .bars span { width: 3px; height: 6px; border-radius: 3px; background: var(--accent); animation: wave 0.9s ease-in-out infinite; }
+    .bars span:nth-child(2) { animation-delay: 0.1s } .bars span:nth-child(3) { animation-delay: 0.2s }
+    .bars span:nth-child(4) { animation-delay: 0.3s } .bars span:nth-child(5) { animation-delay: 0.4s }
+    @keyframes wave { 0%, 100% { height: 5px } 50% { height: 18px } }
+    .spin { width: 14px; height: 14px; border: 2px solid var(--track); border-top-color: var(--accent); border-radius: 50%; animation: r 0.8s linear infinite; }
+    @keyframes r { to { transform: rotate(360deg) } }
+    .icon { font-size: 14px; }
+    .done .icon { color: var(--accent) } .error .icon { color: var(--bad) }
+    .pill { max-width: 400px; box-sizing: border-box; }
+    #msg { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .error { border-radius: 16px; } .error #msg { white-space: normal; line-height: 1.3; }
+    .hidden { display: none !important; }
+    .cancel {
+      flex: none; width: 22px; height: 22px; margin: 0 -6px 0 2px; padding: 0; border: 0; border-radius: 50%;
+      background: transparent; color: var(--text); opacity: 0.55; font: 400 17px/22px system-ui, sans-serif; cursor: pointer;
+    }
+    .cancel:hover { opacity: 1; background: var(--track); }
+  </style>
+</head>
+<body>
+  <div class="pill" id="pill">
+    <div class="bars" id="bars"><span></span><span></span><span></span><span></span><span></span></div>
+    <div class="spin hidden" id="spin"></div>
+    <div class="icon hidden" id="icon"></div>
+    <div id="msg">Listening…</div>
+    <button class="cancel" id="cancel" title="Cancel" aria-label="Cancel">×</button>
+  </div>
+  <script>
+    const { listen } = window.__TAURI__.event;
+    const pill = document.getElementById("pill");
+    const cancel = document.getElementById("cancel");
+    // Stops listening, or drops what's being written, so nothing is typed.
+    cancel.addEventListener("click", () => window.__TAURI__.core.invoke("cancel"));
+    listen("pill-status", ({ payload }) => {
+      applyTheme(savedTheme()); // It's picked in the main window, and this one stays open.
+      const s = payload.state;
+      pill.className = "pill " + s;
+      document.getElementById("bars").classList.toggle("hidden", s !== "listening");
+      document.getElementById("spin").classList.toggle("hidden", !(s === "transcribing" || s === "writing"));
+      cancel.classList.toggle("hidden", !["listening", "transcribing", "writing", "error"].includes(s));
+      const icon = document.getElementById("icon");
+      icon.classList.toggle("hidden", !(s === "done" || s === "error"));
+      icon.textContent = s === "done" ? "✓" : "!";
+      document.getElementById("msg").textContent = payload.message.replace(/ ✓$/, "");
+      document.title = payload.message;
+    });
+  </script>
+</body>
+</html>

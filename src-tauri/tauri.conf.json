@@ -1,0 +1,57 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "wisperChad",
+  "version": "0.11.26",
+  "identifier": "com.wisperchad.app",
+  "build": {
+    "frontendDist": "../ui",
+    "windows": { "staticVCRuntime": false }
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "macOSPrivateApi": true,
+    "windows": [
+      {
+        "label": "main",
+        "title": "wisperChad",
+        "url": "index.html",
+        "width": 980,
+        "height": 720,
+        "minWidth": 720,
+        "minHeight": 520,
+        "center": true,
+        "visible": false
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src ipc: http://ipc.localhost"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis", "msi", "app", "dmg", "deb", "appimage"],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "shortDescription": "Free, local voice dictation and reply assistant",
+    "longDescription": "Hold a hotkey, talk, and get clean text or a polished reply typed where your cursor is. Runs fully offline with Whisper and a local LLM via Ollama.",
+    "category": "Productivity",
+    "windows": {
+      "nsis": { "installMode": "currentUser" }
+    },
+    "macOS": {
+      "signingIdentity": "-",
+      "minimumSystemVersion": "13.3",
+      "entitlements": "Entitlements.plist"
+    },
+    "linux": {
+      "deb": {
+        "depends": ["libasound2", "libgomp1", "libpipewire-0.3-0", "libvulkan1"]
+      }
+    }
+  }
+}

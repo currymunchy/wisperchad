@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The Microsoft Store package. The build fills in VERSION and packs it with the app, its icons and
+     the writing engine. The identity values come from Partner Center (Product identity). -->
+<Package
+  xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+  xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+  xmlns:desktop="http://schemas.microsoft.com/appx/manifest/desktop/windows10"
+  xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+  IgnorableNamespaces="uap desktop rescap">
+
+  <Identity
+    Name="PhuaSiEn.wisperChad"
+    Publisher="CN=DB98FA7A-3C31-4F16-936A-58E7C1D8B859"
+    Version="VERSION"
+    ProcessorArchitecture="x64" />
+
+  <Properties>
+    <DisplayName>wisperChad</DisplayName>
+    <PublisherDisplayName>Phua Si En</PublisherDisplayName>
+    <Logo>Assets\StoreLogo.png</Logo>
+  </Properties>
+
+  <Dependencies>
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.17763.0" MaxVersionTested="10.0.26100.0" />
+  </Dependencies>
+
+  <Resources>
+    <Resource Language="en-us" />
+  </Resources>
+
+  <Applications>
+    <Application Id="wisperChad" Executable="wisperchad.exe" EntryPoint="Windows.FullTrustApplication">
+      <uap:VisualElements
+        DisplayName="wisperChad"
+        Description="Free, private voice dictation and reply writing that runs on your PC."
+        BackgroundColor="transparent"
+        Square150x150Logo="Assets\Square150x150Logo.png"
+        Square44x44Logo="Assets\Square44x44Logo.png" />
+      <Extensions>
+        <!-- Off until the user turns it on in Windows Settings, Apps, Startup. -->
+        <desktop:Extension Category="windows.startupTask" Executable="wisperchad.exe" EntryPoint="Windows.FullTrustApplication">
+          <desktop:StartupTask TaskId="wisperChadStartup" Enabled="false" DisplayName="wisperChad" />
+        </desktop:Extension>
+      </Extensions>
+    </Application>
+  </Applications>
+
+  <Capabilities>
+    <rescap:Capability Name="runFullTrust" />
+    <DeviceCapability Name="microphone" />
+  </Capabilities>
+</Package>

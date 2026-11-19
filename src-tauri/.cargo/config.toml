@@ -1,0 +1,14 @@
+# sherpa-onnx ships Windows libraries built with the static C runtime (/MT). Everything linked into
+# the app has to use the same runtime, including whisper.cpp, or linking fails with LNK2038.
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "target-feature=+crt-static"]
+
+# whisper-rs-sys forwards CMAKE_* and GGML_* variables to CMake.
+[env]
+CMAKE_POLICY_DEFAULT_CMP0091 = "NEW"
+CMAKE_MSVC_RUNTIME_LIBRARY = "MultiThreaded"
+# Left on, whisper.cpp is built for the processor doing the building. Build machines with AVX-512
+# made a Whisper that crashed every PC without it, like a Ryzen 7 3700X, and an M4 Mac building the
+# Mac app would leave out the M1s. Off, it's built for AVX2 on Windows, which nearly every
+# PC since 2015 has, and for every Apple Silicon Mac.
+GGML_NATIVE = "OFF"

@@ -1,0 +1,16 @@
+{
+  "name": "wisperchad",
+  "private": true,
+  "version": "0.11.26",
+  "description": "Free, local, private voice dictation and reply assistant",
+  "license": "MIT",
+  "scripts": {
+    "tauri": "tauri",
+    "dev": "tauri dev",
+    "build": "tauri build",
+    "build:cuda": "tauri build --features cuda"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2"
+  }
+}

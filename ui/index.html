@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>wisperChad</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script src="theme.js"></script>
+</head>
+<body>
+  <div id="splash" class="splash" aria-hidden="true">
+    <div class="splash-mark">
+      <svg viewBox="0 0 1024 1024">
+        <rect x="40" y="40" width="944" height="944" rx="232" fill="#111116" />
+        <path d="M306 300 L416 366 C478 352 546 352 608 366 L718 300 C732 292 744 300 744 316 L756 560 C760 690 646 770 512 770 C378 770 264 690 268 560 L280 316 C280 300 292 292 306 300 Z" fill="none" stroke="#ffffff" stroke-width="48.33" stroke-linejoin="round" transform="translate(512 512) scale(1.2) translate(-512 -531)" />
+        <g class="splash-waves" fill="#ffffff">
+          <rect x="334" y="546" width="44" height="80" rx="22" />
+          <rect x="412" y="498" width="44" height="176" rx="22" />
+          <rect x="490" y="461" width="44" height="250" rx="22" />
+          <rect x="568" y="498" width="44" height="176" rx="22" />
+          <rect x="646" y="546" width="44" height="80" rx="22" />
+        </g>
+      </svg>
+      <span>wisperChad</span>
+    </div>
+  </div>
+  <script src="splash.js"></script>
+
+  <aside class="sidebar">
+    <div class="brand">
+      <img src="logo.png" alt="" width="28" height="28" />
+      <span>wisperChad</span>
+    </div>
+    <nav>
+      <button class="nav active" data-view="home">Home</button>
+      <button class="nav" data-view="models">Models</button>
+      <button class="nav" data-view="more">More models</button>
+      <button class="nav" data-view="settings">Settings</button>
+      <button class="nav" data-view="about">About</button>
+    </nav>
+    <div class="sidebar-foot">
+      <div class="pc" id="pc-summary">Checking your PC…</div>
+      <div class="muted small">100% local. Nothing leaves your computer.</div>
+      <button class="link-button small" data-link="donate">Support wisperChad</button>
+    </div>
+  </aside>
+
+  <main>
+    <!-- HOME -->
+    <section class="view active" id="view-home">
+      <h1>Talk your type.</h1>
+      <p class="lead">Hold a hotkey, speak, let go. Your words appear wherever your cursor is.</p>
+      <div id="wayland-banner"></div>
+
+      <div class="grid2">
+        <div class="card">
+          <h3>Dictate</h3>
+          <div class="hotkey" data-hotkey="dictate"></div>
+          <p class="muted" id="dictate-how">Hold, speak, release. Or double-press to keep listening, and press once more to stop.</p>
+        </div>
+        <div class="card">
+          <h3>Reply</h3>
+          <div class="hotkey" data-hotkey="reply"></div>
+          <p class="muted hidden" id="reply-off">Replies need a writing model. Add one on the Models page whenever you want them.</p>
+          <ol class="steps" id="reply-steps">
+            <li id="reply-how-1">Select the email or message and press <kbd>Ctrl</kbd>+<kbd>C</kbd></li>
+            <li>Click into the reply box</li>
+            <li id="reply-how-3">Hold the hotkey and say what you want to say, however rough</li>
+            <li>A polite draft appears. Review it, then send it yourself</li>
+          </ol>
+        </div>
+      </div>
+
+      <h2>Setup</h2>
+      <ul class="checklist" id="checklist"></ul>
+
+      <h2>Recent <span class="muted small">your last 10, saved only on this PC</span></h2>
+      <div id="history" class="history"><p class="muted">Nothing yet. Try the hotkey.</p></div>
+    </section>
+
+    <!-- MODELS -->
+    <section class="view" id="view-models">
+      <h1>Models</h1>
+      <p class="lead">Pick one model that listens and, optionally, one that writes. Click <b>Requirements</b> to see if your PC can run it.</p>
+      <div class="row"><button class="btn" id="open-presets">Choose a preset for me</button><span id="preset-in-use" class="muted"></span></div>
+
+      <h2>Speech-to-text <span class="muted small">turns your voice into text</span></h2>
+      <div id="stt-list" class="model-list"></div>
+
+      <h2>Writing model (LLM) <span class="muted small">cleans up dictation and writes replies</span></h2>
+      <div id="ollama-banner"></div>
+      <div id="llm-list" class="model-list"></div>
+      <div class="row more-link"><button class="btn" data-goto="more">See more models</button></div>
+    </section>
+
+    <!-- MORE MODELS -->
+    <section class="view" id="view-more">
+      <h1>More models</h1>
+      <p class="lead">Everything else you can install, and how each one should run on your PC. Most people don't need these.</p>
+
+      <h2>Speech-to-text <span class="muted small">turns your voice into text</span></h2>
+      <div id="more-stt-list" class="model-list"></div>
+
+      <h2>Writing model (LLM) <span class="muted small">cleans up dictation and writes replies</span></h2>
+      <div id="more-llm-list" class="model-list"></div>
+      <div class="card custom" id="custom-model">
+        <h3>Use another Ollama model</h3>
+        <p class="muted">Any tag from <span class="mono">ollama.com/library</span>, e.g. <span class="mono">qwen3.5:4b</span></p>
+        <div class="row">
+          <input id="custom-tag" placeholder="model:tag" />
+          <button class="btn" id="custom-pull">Install</button>
+        </div>
+        <div id="custom-progress" class="progress hidden"><div></div></div>
+      </div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section class="view" id="view-settings">
+      <h1>Settings</h1>
+      <div class="card form">
+        <div class="field">
+          <label>Background</label>
+          <select id="set-theme">
+            <option value="light">White</option>
+            <option value="dark">Black</option>
+            <option value="system">Match my computer</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Dictate hotkey</label>
+          <input class="hotkey-input" id="set-dictate" data-field="dictate_hotkey" readonly />
+        </div>
+        <div class="field">
+          <label>Reply hotkey</label>
+          <input class="hotkey-input" id="set-reply" data-field="reply_hotkey" readonly />
+        </div>
+        <p class="muted small" data-keys>Click a box and press the combination you want. It's saved right away.
+          Use a modifier (Ctrl, Alt, Shift, Win) with another key, two or more modifiers on their own like
+          Ctrl+Win, or a single F-key like F8.</p>
+        <div class="field">
+          <label>Hotkey style</label>
+          <select id="set-style">
+            <option value="hold">Hold to talk, or double-press to keep listening</option>
+            <option value="toggle">Press to start, press again to finish</option>
+          </select>
+        </div>
+        <div class="row">
+          <button class="btn" id="reset-hotkeys">Reset hotkeys to default</button>
+          <button class="btn" id="run-setup">Run setup again</button>
+        </div>
+        <div class="field">
+          <label>Microphone</label>
+          <select id="set-mic">
+            <option value="">System default</option>
+          </select>
+        </div>
+        <div class="field check">
+          <input type="checkbox" id="set-mute" />
+          <label for="set-mute">Mute my speakers while recording</label>
+        </div>
+        <div class="field check">
+          <input type="checkbox" id="set-auto-submit" />
+          <label for="set-auto-submit">Auto submit dictation</label>
+        </div>
+        <p class="muted small">Presses Enter after your words are typed, which sends them straight away in most chat apps. It only applies to dictation. Replies are always drafts for you to check.</p>
+        <div class="field">
+          <label>Launch on startup</label>
+          <select id="set-launch">
+            <option value="off">Don't launch on startup</option>
+            <option value="window">Launch and show the window</option>
+            <option value="hidden">Launch hidden in the system tray</option>
+          </select>
+        </div>
+        <p class="muted small hidden" id="launch-store-note">Installed from the Microsoft Store, wisperChad starts with Windows when you turn it on in Windows Settings → Apps → Startup.</p>
+        <div class="field">
+          <label>Reply reads the message from</label>
+          <select id="set-reply-source">
+            <option value="screen" id="reply-from-screen">The open window (text and screenshot)</option>
+            <option value="clipboard" data-keys>Text you copied (Ctrl+C)</option>
+          </select>
+        </div>
+        <p class="muted small" id="reply-source-help">Reads the page's text, even parts scrolled out of view, and takes a screenshot for pictures. Keep any picture on screen when you press the hotkey, and mention details from further down when you speak. This needs a writing model that can read images, like Qwen3.5 4B. It all goes only to the writing model on your PC and is never saved.</p>
+        <div class="field">
+          <label>Reply tone</label>
+          <select id="set-tone">
+            <option value="professional">Professional</option>
+            <option value="friendly">Friendly</option>
+            <option value="casual">Casual</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Your name</label>
+          <input id="set-name" placeholder="As it shows on LinkedIn, like Alex Tan" />
+          <p class="muted small">Signs your emails, and tells your messages from theirs: when you were the last to write,
+            a reply follows up with them instead of answering you.</p>
+        </div>
+        <div class="field check">
+          <input type="checkbox" id="set-cleanup" />
+          <label for="set-cleanup">Clean up dictation with the writing model</label>
+        </div>
+        <div class="field">
+          <label>Keep writing model loaded for</label>
+          <select id="set-keepalive">
+            <option value="0">Unload right away (saves VRAM, slower)</option>
+            <option value="1">1 minute</option>
+            <option value="5">5 minutes</option>
+            <option value="30">30 minutes</option>
+            <option value="1440">All day</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Writing engine</label>
+          <select id="set-engine">
+            <option value="builtin">Built into wisperChad</option>
+            <option value="ollama">Ollama</option>
+          </select>
+        </div>
+        <p class="muted small">The built-in engine needs nothing else installed. Pick Ollama if you already have it, so models don't download twice. Each engine keeps its own models.</p>
+        <div class="field">
+          <label>Ollama address</label>
+          <input id="set-ollama" />
+        </div>
+        <div class="row">
+          <button class="btn primary" id="save-settings">Save</button>
+          <span id="save-msg" class="muted small"></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ABOUT -->
+    <section class="view" id="view-about">
+      <h1>About</h1>
+      <p class="lead"><span id="about-version"></span><br />Made by Phua Si En</p>
+
+      <div class="card about-support">
+        <h3>Support wisperChad</h3>
+        <p class="muted">wisperChad is free and stays free. If it saves you time, a small donation helps keep it going.</p>
+        <button class="btn primary" data-link="donate">Donate</button>
+      </div>
+
+      <div class="card about-folders">
+        <div>
+          <label>App data directory</label>
+          <div class="mono small" id="about-data"></div>
+          <button class="btn" data-folder="data">Open</button>
+        </div>
+        <div>
+          <label>Log directory</label>
+          <div class="mono small" id="about-log"></div>
+          <button class="btn" data-folder="log">Open</button>
+        </div>
+        <p class="muted small">The log only records errors, never what you say or what's on your screen.</p>
+        <p class="small hidden" id="about-custom-replies">Replies are using reply-prompts.json from the app data folder. Delete that file to go back to the built-in wording.</p>
+      </div>
+
+      <div class="card about-credits">
+        <h3>Open-source licenses</h3>
+        <p class="muted">wisperChad is released under the MIT License. It's built on other people's open-source work, and each AI model keeps its publisher's license.</p>
+        <ul>
+          <li>Whisper by OpenAI: MIT</li>
+          <li>Parakeet by NVIDIA: CC BY 4.0, converted by sherpa-onnx</li>
+          <li>Moonshine by Moonshine AI: MIT</li>
+          <li>Qwen3 and Qwen3.5 by Alibaba Cloud: Apache 2.0</li>
+          <li>Gemma 4 by Google: Apache 2.0</li>
+          <li>whisper.cpp and llama.cpp: MIT. sherpa-onnx: Apache 2.0</li>
+        </ul>
+        <button class="btn" id="show-licenses">See all licenses</button>
+      </div>
+    </section>
+
+    <!-- LICENSES -->
+    <section class="view" id="view-licenses">
+      <button class="btn" id="licenses-back">Back to About</button>
+      <h1>Open-source licenses</h1>
+      <pre class="licenses" id="licenses-text">Loading…</pre>
+    </section>
+  </main>
+
+  <div id="setup" class="setup hidden">
+    <div class="setup-card">
+      <div id="setup-dots" class="setup-dots"></div>
+      <div id="setup-body"></div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+  <script src="select.js"></script>
+  <script src="app.js"></script>
+  <script src="setup.js"></script>
+  <script src="about.js"></script>
+</body>
+</html>

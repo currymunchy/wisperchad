@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>NSMicrophoneUsageDescription</key>
+  <string>wisperChad listens while you hold a hotkey, to turn your speech into text on this Mac. Audio never leaves it.</string>
+  <key>NSAccessibilityUsageDescription</key>
+  <string>wisperChad presses Cmd+V for you, so your text lands where your cursor is.</string>
+  <key>NSScreenCaptureUsageDescription</key>
+  <string>wisperChad takes a screenshot when you ask for a reply to the open window. It stays in memory on this Mac.</string>
+</dict>
+</plist>

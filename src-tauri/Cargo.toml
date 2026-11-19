@@ -1,0 +1,68 @@
+[package]
+name = "wisperchad"
+version = "0.11.26"
+description = "Free, local, private voice dictation and email-reply assistant"
+authors = ["wisperChad contributors"]
+license = "MIT"
+edition = "2021"
+rust-version = "1.77"
+
+[lib]
+name = "wisperchad_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon", "macos-private-api"] }
+tauri-plugin-global-shortcut = "2"
+tauri-plugin-single-instance = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+anyhow = "1"
+whisper-rs = "0.16"
+sherpa-onnx = "2"
+xcap = "0.9"
+image = { version = "0.25", default-features = false, features = ["png"] }
+base64 = "0.22"
+regex = "1"
+cpal = "0.16"
+enigo = "0.6"
+arboard = "3"
+reqwest = { version = "0.12", default-features = false, features = ["json", "stream", "rustls-tls"] }
+futures-util = "0.3"
+tokio = { version = "1", features = ["time", "fs", "io-util", "sync"] }
+sysinfo = { version = "0.37", default-features = false, features = ["system"] }
+sha2 = "0.10"
+tauri-plugin-autostart = "2"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.59", features = ["Win32_UI_Input_KeyboardAndMouse"] }
+windows = { version = "0.62", features = ["Win32_Graphics_Dxgi", "Win32_Media_Audio", "Win32_Media_Audio_Endpoints", "Win32_Security","Win32_System_Com", "Win32_System_JobObjects", "Win32_System_Ole", "Win32_System_Registry", "Win32_System_Threading", "Win32_System_Variant", "Win32_UI_Accessibility", "Win32_UI_Input_KeyboardAndMouse", "Win32_UI_WindowsAndMessaging"] }
+zip = { version = "9", default-features = false, features = ["deflate-flate2-zlib-rs"] }
+
+[target.'cfg(unix)'.dependencies]
+flate2 = "1"
+tar = "0.4"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+block2 = "0.6"
+objc2 = "0.6"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+# Without this the clipboard goes through X11 even on Wayland, which only some apps can see.
+arboard = { version = "3", features = ["wayland-data-control"] }
+x11rb = "0.13"
+
+[features]
+default = []
+# Build whisper.cpp with NVIDIA CUDA acceleration (needs the CUDA toolkit at build time).
+cuda = ["whisper-rs/cuda"]
+# Build whisper.cpp with Vulkan acceleration (AMD / Intel / NVIDIA; needs the Vulkan SDK at build time).
+vulkan = ["whisper-rs/vulkan"]
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true
