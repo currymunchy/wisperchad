@@ -5,7 +5,7 @@ description = "Free, local, private voice dictation and email-reply assistant"
 authors = ["wisperChad contributors"]
 license = "MIT"
 edition = "2021"
-rust-version = "1.77"
+rust-version = "1.84"
 
 [lib]
 name = "wisperchad_lib"

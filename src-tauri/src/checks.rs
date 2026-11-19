@@ -409,8 +409,7 @@ fn turned_down_offer(reply: &str, note: &str) -> Option<String> {
             wanted.extend(
                 offer
                     .split_whitespace()
-                    .filter(|word| word.chars().count() > 2)
-                    .next_back()
+                    .rfind(|word| word.chars().count() > 2)
                     .map(String::from),
             );
         }
