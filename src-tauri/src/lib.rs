@@ -179,6 +179,11 @@ fn hide_pill_later(app: &AppHandle, ms: u64) {
     });
 }
 
+/// How far the bar's window sits above the taskbar or the Dock, in points. The bar is drawn in the
+/// middle of its window, 17 points up, so it shows 59 points above either one. That's where it has
+/// always been on Windows.
+const ABOVE_TASKBAR: f64 = 42.0;
+
 fn create_pill_window(app: &AppHandle) -> tauri::Result<()> {
     let (w, h) = (420.0, 76.0);
     let win = WebviewWindowBuilder::new(app, "pill", WebviewUrl::App("pill.html".into()))
@@ -196,12 +201,14 @@ fn create_pill_window(app: &AppHandle) -> tauri::Result<()> {
         .build()?;
     #[cfg(target_os = "macos")]
     show_pill_everywhere(&win);
+    // The work area leaves out the taskbar and the Dock, so the bar keeps the same gap above
+    // either one, whatever its size, and comes down to the screen's edge when it's hidden.
     if let Ok(Some(mon)) = win.primary_monitor() {
-        let size = mon.size();
-        let pos = mon.position();
+        let area = mon.work_area();
         let scale = mon.scale_factor();
-        let x = pos.x + (size.width as i32 - (w * scale) as i32) / 2;
-        let y = pos.y + size.height as i32 - ((h + 90.0) * scale) as i32;
+        let x = area.position.x + (area.size.width as i32 - (w * scale) as i32) / 2;
+        let bottom = area.position.y + area.size.height as i32;
+        let y = bottom - ((h + ABOVE_TASKBAR) * scale) as i32;
         let _ = win.set_position(PhysicalPosition::new(x, y));
     }
     Ok(())
