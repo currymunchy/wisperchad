@@ -11,6 +11,9 @@ use std::sync::OnceLock;
 /// What's wrong with a reply, most serious first.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Fix {
+    /// The note's "I don't care" sent as it was: "Hi, I don't care." to an email asking them to
+    /// share their page, which wanted a polite no.
+    Dismissive,
     /// The user's own news told back to them as theirs: "sorry to hear that your laptop died".
     Flip,
     /// Words from the wording's examples copied in, like "pineapple" on a post about work.
@@ -563,6 +566,74 @@ pub fn speaks_for_them(reply: &str, note: &str) -> Option<&'static str> {
         .find(|line| has_word(&reply, line))
 }
 
+/// How a note says the user doesn't care, which is their answer and never fit to send.
+const DISMISSIVE: [&str; 8] = [
+    "don't care",
+    "dont care",
+    "do not care",
+    "couldn't care less",
+    "could not care less",
+    "who cares",
+    "idc",
+    "meh",
+];
+/// Said on its own, "whatever" doesn't care, but "whatever suits you" is polite.
+const ON_ITS_OWN: [&str; 1] = ["whatever"];
+
+/// The words in the reply that say the user doesn't care, like the note's "I don't care" sent
+/// back as it was.
+pub fn dismissive(reply: &str) -> Option<&'static str> {
+    let reply = plain(reply);
+    let alnum = |c: Option<char>| c.is_some_and(char::is_alphanumeric);
+    DISMISSIVE
+        .iter()
+        .find(|phrase| has_word(&reply, phrase))
+        .or_else(|| {
+            ON_ITS_OWN.iter().find(|word| {
+                reply.match_indices(*word).any(|(at, _)| {
+                    let after = reply[at + word.len()..].trim_start_matches(' ');
+                    !alnum(reply[..at].chars().next_back()) && !alnum(after.chars().next())
+                })
+            })
+        })
+        .copied()
+}
+
+/// Words a note can hold and still only say the user doesn't care, like "honestly I don't care".
+const DONT_CARE_NOTE: [&str; 30] = [
+    "i", "don't", "dont", "do", "not", "care", "couldn't", "could", "less", "who", "cares", "idc",
+    "meh", "whatever", "really", "honestly", "tbh", "just", "so", "much", "about", "it", "this",
+    "that", "at", "all", "bro", "man", "lol", "ugh",
+];
+
+/// Whether the note does nothing but say the user doesn't care: "I don't care", "whatever", "meh".
+/// To an email asking them to share their page, a small model read "whatever" as a yes.
+pub fn only_dismissive(note: &str) -> bool {
+    let note = plain(note);
+    let words: Vec<&str> = note
+        .split(|c: char| !c.is_alphanumeric() && c != '\'')
+        .filter(|word| !word.is_empty())
+        .collect();
+    !words.is_empty()
+        && words.iter().all(|word| DONT_CARE_NOTE.contains(word))
+        && (dismissive(&note).is_some() || words.contains(&"whatever"))
+}
+
+/// Pairs with "or" that only ask whether there's more, never for a choice: "any questions or
+/// concerns?"
+const NOT_A_CHOICE: [&str; 4] = ["questions or", "or concerns", "or comments", "or feedback"];
+
+/// Whether their message asks the user to choose, as "Tuesday or Thursday?" does: a question with
+/// "or" in it. To that, "I don't care" means either is fine, not no thanks.
+pub fn offers_a_choice(message: &str) -> bool {
+    plain(message)
+        .split_inclusive(['.', '!', '?', '\n'])
+        .filter(|sentence| sentence.ends_with('?'))
+        .any(|sentence| {
+            has_word(sentence, "or") && !NOT_A_CHOICE.iter().any(|pair| sentence.contains(pair))
+        })
+}
+
 /// Words a note can hold and still only say thanks, like "okay, thank you so much".
 const THANKS_NOTE: [&str; 24] = [
     "thanks", "thank", "thx", "ty", "cheers", "appreciate", "appreciated", "you", "so", "very",
@@ -710,6 +781,12 @@ fn copied_example(reply: &str, note: &str, message: &str) -> bool {
 /// whether the reply is a comment on a post.
 pub fn problems(reply: &str, note: &str, message: &str, comment: bool) -> Vec<Problem> {
     let mut found = Vec::new();
+    if let Some(words) = dismissive(reply) {
+        found.push(Problem::new(
+            Fix::Dismissive,
+            &[("words", words.to_string())],
+        ));
+    }
     if let Some(thing) = flipped(reply, note) {
         found.push(Problem::new(Fix::Flip, &[("clause", clause(note, &thing))]));
     }
@@ -1034,6 +1111,62 @@ mod tests {
         for note in ["thanks, see you Monday", "no thanks", "ok", "thanks but I can't make it", ""] {
             assert!(!only_thanks(note), "{note}");
         }
+    }
+
+    #[test]
+    fn i_dont_care_is_never_sent() {
+        // What a small model sent to Buy Me a Coffee's "share your page" email for "I don't care".
+        let reply = "Hi,\n\nI don’t care.\n\nBest regards,\nPhua Si En";
+        let found = problems(
+            reply,
+            "I don't care",
+            "Your fans are waiting! Share your page.",
+            false,
+        );
+        assert_eq!(found[0].fix, Fix::Dismissive);
+        assert_eq!(found[0].values, [("words", "don't care".to_string())]);
+        for (reply, words) in [
+            ("Whatever.", "whatever"),
+            ("Hi, whatever, I'll pass.", "whatever"),
+            ("meh", "meh"),
+            ("idc lol", "idc"),
+            ("Honestly, who cares?", "who cares"),
+        ] {
+            assert_eq!(dismissive(reply), Some(words), "{reply}");
+        }
+        for reply in [
+            "Thanks, but I'll pass for now.",
+            "Whatever works for you is fine with me.",
+            "Either day works for me.",
+            "I don't mind which day.",
+            "Please send my ID card.",
+        ] {
+            assert_eq!(dismissive(reply), None, "{reply}");
+        }
+        for note in [
+            "I don’t care",
+            "whatever bro",
+            "meh",
+            "I do not care at all",
+        ] {
+            assert!(only_dismissive(note), "{note}");
+        }
+        for note in [
+            "not interested",
+            "I don't care, just say no",
+            "whatever works",
+            "all good",
+        ] {
+            assert!(!only_dismissive(note), "{note}");
+        }
+        assert!(offers_a_choice(
+            "Hope you're well! Would you prefer Tuesday or Thursday afternoon? Let me know."
+        ));
+        assert!(offers_a_choice("Tea or coffee?"));
+        assert!(!offers_a_choice("Do you have any questions or concerns?"));
+        assert!(!offers_a_choice(
+            "Share it on Facebook, Twitter, or any social media. Ready to share?"
+        ));
     }
 
     #[test]

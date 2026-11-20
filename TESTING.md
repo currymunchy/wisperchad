@@ -118,6 +118,8 @@ Run through this before a release. Automated unit tests: `cd src-tauri && cargo 
 - [ ] A reply never sends them their own link (like DTSA's "Submit your idea here" form) unless you said to
 - [ ] A plain "thank you" to a bank's newsletter just thanks them: no "contact us" or "we are here to help" in their voice, no promises, no follow-up, even with only the footer on screen
 - [ ] Writing for your own shop ("tell her we're open till 6, she can contact us"), the reply keeps "contact us"
+- [ ] "I don't care", "whatever" or "meh" to an email asking you to share or buy something gives a polite no thanks, never "I don't care" and never a yes
+- [ ] "I don't care" to "Tuesday or Thursday?" says either day works for you
 - [ ] Following up your own unanswered email (with your portfolio link in it) greets who you wrote to, never you, and leaves the link out
 - [ ] A note that's only swearing gives what a sensible professional would send: gracious to a rejection, a polite no to a pitch, a short "thanks for the update" to a notice
 - [ ] "where the fuck is my parcel" asks them to check where it is, in your voice, not theirs

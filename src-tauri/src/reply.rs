@@ -91,6 +91,10 @@ pub struct ReplyPrompts {
     pub stance_agree: String,
     pub stance_disagree: String,
     pub stance_no: String,
+    /// Added after a note that only says the user doesn't care, saying what that means: no
+    /// thanks, or, to a question that gives them a choice, any option works.
+    pub stance_dont_care: String,
+    pub stance_dont_mind: String,
     /// Added for another try, one for each slip checks.rs finds.
     pub fix_flip: String,
     pub fix_example: String,
@@ -106,6 +110,7 @@ pub struct ReplyPrompts {
     pub fix_missing: String,
     pub fix_made_up: String,
     pub fix_link: String,
+    pub fix_dismissive: String,
 }
 
 impl Default for ReplyPrompts {
@@ -769,6 +774,13 @@ fn compose(
         // An angry no, spelled out too: a small model answered "Boy, I ain't going" with a
         // thank-you for having them, and asked again, still did. Said calmly, it got them right.
         _ if note.feeling != Feeling::Plain && checks::says_no(&note.text) => p.stance_no.as_str(),
+        // "I don't care", spelled out: a small model sent it back as it was, and read "whatever"
+        // to an email asking the user to share their page as a yes. Told every meaning it could
+        // have at once, it mixed them up, so it's told the one that fits their message.
+        _ if checks::only_dismissive(&note.text) && checks::offers_a_choice(&found.message) => {
+            p.stance_dont_mind.as_str()
+        }
+        _ if checks::only_dismissive(&note.text) => p.stance_dont_care.as_str(),
         _ => "",
     };
     let feeling = format!("{feeling}{stance}");
@@ -844,6 +856,7 @@ pub fn fix(p: &ReplyPrompts, prompt: &Prompt, problem: &checks::Problem) -> Prom
             .map_or("", |(_, value)| value.as_str())
     };
     let wording = match problem.fix {
+        Fix::Dismissive => &p.fix_dismissive,
         Fix::Flip => &p.fix_flip,
         Fix::Example => &p.fix_example,
         Fix::TheirWords => &p.fix_their_words,
@@ -1680,6 +1693,64 @@ time?\n6:05 PM\n{CURSOR_MARK}"
         assert!(!ask("I can't make it, sorry", Feeling::Plain));
         assert!(!ask("I can't wait", Feeling::Strong));
         assert!(!ask("Okay thanks", Feeling::FedUp));
+    }
+
+    #[test]
+    fn i_dont_care_is_spelled_out() {
+        let found = Found {
+            from: "Buy Me a Coffee".into(),
+            message: "Your fans are waiting! Share your page.".into(),
+            ..Found::default()
+        };
+        let english = Language::Named("English".into());
+        let ask = |said: &str| {
+            let note = note(said, Feeling::Plain);
+            let p = write(
+                &wording(),
+                MessageKind::Email,
+                &found,
+                &note,
+                "professional",
+                &english,
+                "",
+            );
+            p.user.contains(&wording().stance_dont_care)
+        };
+        for said in [
+            "I don't care",
+            "i dont care",
+            "Whatever.",
+            "meh",
+            "honestly who cares",
+        ] {
+            assert!(ask(said), "{said}");
+        }
+        for said in [
+            "not interested",
+            "I don't care, just say no",
+            "whatever works",
+            "thanks",
+        ] {
+            assert!(!ask(said), "{said}");
+        }
+        // Asked to choose, it means any option works.
+        let choice = Found {
+            from: "Marcus".into(),
+            message: "Would you prefer Tuesday or Thursday afternoon?".into(),
+            ..Found::default()
+        };
+        let note = note("I don't care", Feeling::Plain);
+        let p = write(
+            &wording(),
+            MessageKind::Email,
+            &choice,
+            &note,
+            "professional",
+            &english,
+            "",
+        );
+        assert!(p.user.contains(&wording().stance_dont_mind));
+        assert!(!p.user.contains(&wording().stance_dont_care));
     }
 
     #[test]
