@@ -1,10 +1,14 @@
 // The About page, and the small note that shows once after an update.
 const VERSION_KEY = "wisperchad.version";
 const WHATS_NEW = {
-  version: "0.11.27",
+  version: "0.11.28",
   items: [
-    "Saying “I don’t care” or “whatever” to an email gives a polite no thanks, or “either works” when they ask you to pick",
-    "On a Mac, the listening bar sits just above the Dock, as it does above the taskbar on Windows",
+    "Numbers you say are typed as digits: a phone number, $25, 50% or 5:30",
+    "Send feedback straight from About",
+    "Launch on startup keeps working after you install an update",
+    "Setup recommends Light, with the quick Qwen3.5 2B, for every computer that can run it",
+    "No microphone plugged in? It says so, instead of a sound system error",
+    "On a Mac, music goes quiet with AirPods and USB speakers too",
   ],
 };
 
