@@ -1,11 +1,10 @@
 // The About page, and the small note that shows once after an update.
 const VERSION_KEY = "wisperchad.version";
 const WHATS_NEW = {
-  version: "0.11.26",
+  version: "0.11.27",
   items: [
-    "Support wisperChad from About: Donate opens the website, where you can buy me a coffee or sponsor on GitHub",
-    "Open-source licenses and the maker's name in About",
-    "Replies read the email's text in Safari, Chrome and Mail, not just what's on screen",
+    "Saying “I don’t care” or “whatever” to an email gives a polite no thanks, or “either works” when they ask you to pick",
+    "On a Mac, the listening bar sits just above the Dock, as it does above the taskbar on Windows",
   ],
 };
 

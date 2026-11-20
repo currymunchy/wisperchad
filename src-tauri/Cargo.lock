@@ -6485,7 +6485,7 @@ dependencies = [
 
 [[package]]
 name = "wisperchad"
-version = "0.11.26"
+version = "0.11.27"
 dependencies = [
  "anyhow",
  "arboard",

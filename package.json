@@ -1,7 +1,7 @@
 {
   "name": "wisperchad",
   "private": true,
-  "version": "0.11.26",
+  "version": "0.11.27",
   "description": "Free, local, private voice dictation and reply assistant",
   "license": "MIT",
   "scripts": {
