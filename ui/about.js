@@ -55,6 +55,58 @@ document.querySelectorAll("[data-link]").forEach((button) =>
   )
 );
 
+// Feedback goes by email through Web3Forms. Its free plan only takes messages sent from a web page,
+// so this page sends it rather than the Rust side. The key can only send to the developer's inbox,
+// so it's made to be shipped in an app. Without one the box stays hidden.
+const FEEDBACK_KEY = "4fd3b01e-227f-4bad-8b9b-9ee9656b30ef";
+
+async function sendFeedback() {
+  const text = $("#feedback-text").value.trim();
+  const email = $("#feedback-email").value.trim();
+  const status = $("#feedback-status");
+  if (!text) {
+    status.textContent = "Write something first.";
+    return;
+  }
+  const button = $("#feedback-send");
+  button.disabled = true;
+  status.textContent = "Sending…";
+  const system = ON_MAC ? "Mac" : ON_LINUX ? "Linux" : "Windows";
+  const about = await invoke("get_about").catch(() => ({}));
+  const version = about.version || "unknown";
+  const message = {
+    access_key: FEEDBACK_KEY,
+    subject: `wisperChad feedback (${version}, ${system})`,
+    from_name: "wisperChad",
+    message: text,
+    version,
+    system,
+  };
+  if (email) message.email = email;
+  try {
+    const response = await fetch("https://api.web3forms.com/submit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify(message),
+    });
+    const answer = await response.json().catch(() => ({}));
+    if (!response.ok || !answer.success) throw new Error(answer.message || `The server said ${response.status}.`);
+    $("#feedback-text").value = "";
+    status.textContent = "Sent. Thank you!";
+  } catch (e) {
+    // fetch throws a TypeError when it can't connect at all.
+    status.textContent =
+      e instanceof TypeError
+        ? "Couldn't reach the internet. Check your connection and try again."
+        : `Couldn't send it: ${e.message}`;
+  } finally {
+    button.disabled = false;
+  }
+}
+
+$(".about-feedback").classList.toggle("hidden", !FEEDBACK_KEY);
+$("#feedback-send").addEventListener("click", sendFeedback);
+
 // The full texts are long, so they only load when someone asks to see them.
 function showLicenses() {
   showView("licenses");

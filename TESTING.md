@@ -26,7 +26,7 @@ Run through this before a release. Automated unit tests: `cd src-tauri && cargo 
 - [ ] After Transcription only, the reply hotkey says replies need a writing model
 - [ ] The Customize tab can pick None for the writing model
 - [ ] Setup offers three presets: Transcription only, Light and Balanced; Qwen3.5 9B is only on More models
-- [ ] A PC with no graphics card gets Light, however fast its processor, and Balanced warns it may run slowly; a 16 GB PC with an 8 GB card gets Balanced
+- [ ] Every PC with 8 GB of memory or more is recommended Light, graphics card or not; Balanced is never recommended, but it can be picked, and without a graphics card it warns it may run slowly
 - [ ] Installing shows both models' progress, and a failed download offers Try again and Skip setup for now
 - [ ] Dictate test: holding the hotkey and speaking fills the box and says it works
 - [ ] Dictate test: the dictation hotkey box shows Ctrl+Win; clicking it and holding other keys changes it, and the steps below show the new keys
@@ -210,6 +210,9 @@ Run through this before a release. Automated unit tests: `cd src-tauri && cargo 
 - [ ] With the chosen microphone unplugged, it falls back to the system default
 - [ ] With Mute on, music stops while recording and comes back after, including when a recording is cancelled
 - [ ] Speakers you muted yourself stay muted afterwards
+- [ ] Dictating "my number is nine one two three four five six seven", "twenty five dollars", "fifty percent"
+  and "at five thirty" types 91234567, $25, 50% and 5:30, while "one of them" and "two kids" stay words
+- [ ] With Launch on startup on, install the next version over this one: wisperChad still starts after a restart
 - [ ] Auto submit presses Enter after a dictation, in a real chat box, with the words already in it
 - [ ] Auto submit never presses Enter after a reply
 
@@ -230,6 +233,8 @@ Run through this before a release. Automated unit tests: `cd src-tauri && cargo 
 - [ ] Shows the right version, and "Made by Phua Si En"
 - [ ] Donate, and Support wisperChad at the bottom of the sidebar, open the website's Support section in the browser, with Buy me a coffee and Sponsor on GitHub
 - [ ] See all licenses shows the full list, and Back to About returns
+- [ ] Send feedback, with and without an email: it arrives by email with the version and system, and the box
+  empties. Empty, it asks for something first. Offline, it says so and keeps what you wrote
 - [ ] More models no longer lists Gemma 3 or Llama 3.2
 - [ ] After an update, a small note shows what's new once, and closes with the ×
 - [ ] A fresh install doesn't show the note
@@ -273,8 +278,12 @@ None of this has been run on a real Mac yet. Everything above applies too, with 
 - [ ] On a fresh install, Ctrl+Option+D dictates and Ctrl+Option+R replies
 - [ ] The dictate test in setup fills its box, with wisperChad in front
 - [ ] Music stops while recording and comes back after, and speakers muted by hand stay muted
+- [ ] The same with AirPods and with USB speakers, which go quiet by their volume, and the volume
+  comes back where it was. A screen's own speakers over HDMI or DisplayPort keep playing, and the log says why
 - [ ] Cmd+Q while recording: the sound comes back
 - [ ] Launch on startup opens wisperChad after logging in, and the hidden choice leaves the window closed
+- [ ] Opened from Downloads or the disk image, turning on Launch on startup says to move it to Applications first
+- [ ] Restart the Mac with Launch on startup on: the first dictation after logging in records
 - [ ] Ctrl+Cmd works as a hotkey, with no permission asked for it
 - [ ] Ctrl+Cmd+Left, or any shortcut starting from Ctrl+Cmd, leaves no recording running
 - [ ] On any Apple Silicon Mac, an M1 too, every Whisper model dictates without crashing

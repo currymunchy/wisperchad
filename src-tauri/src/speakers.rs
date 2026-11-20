@@ -67,11 +67,14 @@ fn run(commands: Receiver<bool>) {
     }
 }
 
-/// macOS keeps a mute switch on each output device. Some, like HDMI screens, have none, and those
-/// just keep playing.
+/// macOS keeps a mute switch and a volume on each output device, for the whole device or for each
+/// of its channels, and many devices have only some of these. AirPods and many USB speakers have no
+/// mute switch, so their volume goes to zero instead. Screens on HDMI or DisplayPort have neither,
+/// and those just keep playing.
 #[cfg(target_os = "macos")]
 fn run(commands: Receiver<bool>) {
     use std::ffi::c_void;
+    use std::mem::size_of;
     use std::ptr::null;
 
     #[repr(C)]
@@ -81,20 +84,31 @@ fn run(commands: Receiver<bool>) {
         element: u32,
     }
 
+    const fn property(selector: &[u8; 4], scope: &[u8; 4], element: u32) -> Property {
+        Property {
+            selector: u32::from_be_bytes(*selector),
+            scope: u32::from_be_bytes(*scope),
+            element,
+        }
+    }
+
     const SYSTEM: u32 = 1;
-    const DEFAULT_OUTPUT: Property = Property {
-        selector: u32::from_be_bytes(*b"dOut"),
-        scope: u32::from_be_bytes(*b"glob"),
-        element: 0,
-    };
-    const MUTE: Property = Property {
-        selector: u32::from_be_bytes(*b"mute"),
-        scope: u32::from_be_bytes(*b"outp"),
-        element: 0,
-    };
+    /// The whole device. Its channels count from 1.
+    const MAIN: u32 = 0;
+    const DEFAULT_OUTPUT: Property = property(b"dOut", b"glob", MAIN);
+    const STEREO_CHANNELS: Property = property(b"dch2", b"outp", MAIN);
+    const TRANSPORT: Property = property(b"tran", b"glob", MAIN);
+    const MUTE: &[u8; 4] = b"mute";
+    const VOLUME: &[u8; 4] = b"volm";
 
     #[link(name = "CoreAudio", kind = "framework")]
     extern "C" {
+        fn AudioObjectHasProperty(object: u32, property: *const Property) -> u8;
+        fn AudioObjectIsPropertySettable(
+            object: u32,
+            property: *const Property,
+            settable: *mut u8,
+        ) -> i32;
         fn AudioObjectGetPropertyData(
             object: u32,
             property: *const Property,
@@ -113,32 +127,117 @@ fn run(commands: Receiver<bool>) {
         ) -> i32;
     }
 
-    fn read(object: u32, property: &Property) -> Option<u32> {
-        let (mut value, mut size) = (0u32, 4u32);
-        let data = (&mut value as *mut u32).cast();
+    fn read<T: Copy + Default>(object: u32, property: &Property) -> Option<T> {
+        let mut value = T::default();
+        let mut size = size_of::<T>() as u32;
+        let data = (&mut value as *mut T).cast();
         let status =
             unsafe { AudioObjectGetPropertyData(object, property, 0, null(), &mut size, data) };
         (status == 0).then_some(value)
     }
 
-    fn set_muted(device: u32, muted: bool) -> bool {
-        let value = u32::from(muted);
-        let data = (&value as *const u32).cast();
-        unsafe { AudioObjectSetPropertyData(device, &MUTE, 0, null(), 4, data) == 0 }
+    fn write<T: Copy>(object: u32, property: &Property, value: T) -> bool {
+        let data = (&value as *const T).cast();
+        let size = size_of::<T>() as u32;
+        unsafe { AudioObjectSetPropertyData(object, property, 0, null(), size, data) == 0 }
     }
 
-    // Only a device muted here gets unmuted: one the user muted themselves stays that way.
-    let mut muted_here = None;
+    fn settable(object: u32, property: &Property) -> bool {
+        let mut settable = 0u8;
+        unsafe {
+            AudioObjectHasProperty(object, property) != 0
+                && AudioObjectIsPropertySettable(object, property, &mut settable) == 0
+                && settable != 0
+        }
+    }
+
+    /// Where the device can change `selector`: for the whole device, or else for each of its left
+    /// and right channels. Empty when it can't at all.
+    fn controls(device: u32, selector: &[u8; 4]) -> Vec<Property> {
+        let whole = property(selector, b"outp", MAIN);
+        if settable(device, &whole) {
+            return vec![whole];
+        }
+        let [left, right] = read::<[u32; 2]>(device, &STEREO_CHANNELS).unwrap_or([1, 2]);
+        let mut channels: Vec<Property> = [left, right]
+            .into_iter()
+            .map(|channel| property(selector, b"outp", channel))
+            .filter(|channel| settable(device, channel))
+            .collect();
+        channels.dedup_by_key(|channel| channel.element);
+        channels
+    }
+
+    /// What was turned down here, so only that is turned back up: speakers the user muted, or
+    /// turned all the way down, stay that way.
+    enum Quieted {
+        Muted(u32, Vec<Property>),
+        Lowered(u32, Vec<(Property, f32)>),
+    }
+
+    fn quiet() -> Result<Quieted, String> {
+        let device = read::<u32>(SYSTEM, &DEFAULT_OUTPUT)
+            .ok_or("Couldn't mute the speakers: macOS named no output device")?;
+        let switches = controls(device, MUTE);
+        if !switches.is_empty() {
+            let muted = switches
+                .into_iter()
+                .filter(|switch| {
+                    read::<u32>(device, switch) == Some(0) && write(device, switch, 1u32)
+                })
+                .collect();
+            return Ok(Quieted::Muted(device, muted));
+        }
+        let volumes = controls(device, VOLUME);
+        if !volumes.is_empty() {
+            let lowered = volumes
+                .into_iter()
+                .filter_map(|volume| {
+                    let level = read::<f32>(device, &volume)?;
+                    (level > 0.0 && write(device, &volume, 0f32)).then_some((volume, level))
+                })
+                .collect();
+            return Ok(Quieted::Lowered(device, lowered));
+        }
+        // A four-letter code: "hdmi" and "dprt" are screens, "blue" is Bluetooth, "usb " is USB.
+        let kind = read::<u32>(device, &TRANSPORT).unwrap_or(0).to_be_bytes();
+        Err(format!(
+            "Couldn't mute the speakers: the output device ({}) has no mute or volume control",
+            String::from_utf8_lossy(&kind)
+        ))
+    }
+
+    fn restore(quieted: Quieted) {
+        match quieted {
+            Quieted::Muted(device, switches) => {
+                for switch in switches {
+                    write(device, &switch, 0u32);
+                }
+            }
+            Quieted::Lowered(device, volumes) => {
+                for (volume, level) in volumes {
+                    write(device, &volume, level);
+                }
+            }
+        }
+    }
+
+    let mut quieted = None;
+    let mut told = false;
     for mute in commands {
         if !mute {
-            if let Some(device) = muted_here.take() {
-                set_muted(device, false);
+            if let Some(quieted) = quieted.take() {
+                restore(quieted);
             }
-        } else if muted_here.is_none() {
-            if let Some(device) = read(SYSTEM, &DEFAULT_OUTPUT) {
-                if read(device, &MUTE) == Some(0) && set_muted(device, true) {
-                    muted_here = Some(device);
+        } else if quieted.is_none() {
+            match quiet() {
+                Ok(done) => quieted = Some(done),
+                // Once is enough for the log, as it won't change until the output does.
+                Err(why) if !told => {
+                    told = true;
+                    crate::applog::write(&why);
                 }
+                Err(_) => {}
             }
         }
     }

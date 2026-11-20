@@ -97,10 +97,43 @@ fn find_microphone(host: &cpal::Host, name: &str) -> Option<cpal::Device> {
     chosen.or_else(|| host.default_input_device())
 }
 
+const NO_MICROPHONE: &str = "No microphone detected. Plug one in, or pick one in Settings.";
+
+/// Tries to open the microphone this many times. Just after the computer starts, its sound system
+/// can turn a microphone away for a moment, and a chosen microphone can fail where the system
+/// default works.
+const OPEN_ATTEMPTS: usize = 3;
+const OPEN_RETRY: std::time::Duration = std::time::Duration::from_millis(400);
+
 fn open_stream(buffer: Arc<Mutex<Vec<f32>>>, microphone: &str) -> Result<(Stream, u32)> {
+    let mut failure = anyhow!(NO_MICROPHONE);
+    for attempt in 0..OPEN_ATTEMPTS {
+        if attempt > 0 {
+            std::thread::sleep(OPEN_RETRY);
+        }
+        // The last try is the system default, in case the chosen microphone is what's failing.
+        let name = if attempt + 1 == OPEN_ATTEMPTS {
+            ""
+        } else {
+            microphone
+        };
+        match try_open_stream(buffer.clone(), name) {
+            Ok(stream) => return Ok(stream),
+            // An unplugged microphone can stay the default for a while, and then fails with an
+            // error from the sound system that tells nobody anything. Nor is it worth waiting for.
+            Err(_) if microphones().is_empty() => return Err(anyhow!(NO_MICROPHONE)),
+            Err(e) => failure = e,
+        }
+    }
+    Err(anyhow!(
+        "The microphone wouldn't start ({failure}). Quit wisperChad and open it again, or pick \
+         another microphone in Settings."
+    ))
+}
+
+fn try_open_stream(buffer: Arc<Mutex<Vec<f32>>>, microphone: &str) -> Result<(Stream, u32)> {
     let host = cpal::default_host();
-    let device =
-        find_microphone(&host, microphone).ok_or_else(|| anyhow!("No microphone found"))?;
+    let device = find_microphone(&host, microphone).ok_or_else(|| anyhow!(NO_MICROPHONE))?;
     let supported = device.default_input_config()?;
     let channels = supported.channels() as usize;
     let rate = supported.sample_rate().0;

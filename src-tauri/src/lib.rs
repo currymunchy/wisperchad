@@ -13,6 +13,7 @@ mod engine;
 mod hardware;
 mod input;
 mod llm;
+mod numbers;
 mod permissions;
 mod presets;
 mod presses;
@@ -569,6 +570,7 @@ async fn run_pipeline(app: &AppHandle, mode: Mode) -> anyhow::Result<Option<Stri
     let models_dir = st.models_dir.clone();
     let stt = st.stt.clone();
     let lang = s.language.clone();
+    let english = lang == "en" || model.languages == "English";
     let transcript = tauri::async_runtime::spawn_blocking(move || {
         stt.transcribe(&model, &models_dir, &audio, &lang)
     })
@@ -576,6 +578,12 @@ async fn run_pipeline(app: &AppHandle, mode: Mode) -> anyhow::Result<Option<Stri
     if transcript.is_empty() {
         return Ok(None);
     }
+    // Numbers said in words are typed as digits, before clean-up, which keeps to what was said.
+    let transcript = if english {
+        numbers::to_digits(&transcript)
+    } else {
+        transcript
+    };
 
     let output = match (mode, s.llm_model.as_deref()) {
         (Mode::Reply, Some(tag)) => {
@@ -988,6 +996,13 @@ fn set_launch_on_startup(app: &AppHandle, setting: &str) -> Result<(), String> {
     if store_family().is_some() {
         return Ok(());
     }
+    #[cfg(target_os = "macos")]
+    if setting != "off" && running_from_a_temporary_copy() {
+        let why = "Move wisperChad into your Applications folder and open it from there first. \
+            Until then macOS runs a temporary copy that's gone after a restart, so it can't launch \
+            on startup.";
+        return Err(why.into());
+    }
     let autostart = app.autolaunch();
     let changed = if setting == "off" {
         autostart.disable()
@@ -995,6 +1010,66 @@ fn set_launch_on_startup(app: &AppHandle, setting: &str) -> Result<(), String> {
         autostart.enable()
     };
     changed.map_err(|e| format!("Couldn't change launching on startup: {e}"))
+}
+
+/// macOS runs a downloaded app from a hidden copy until it's moved into Applications, and from the
+/// disk image when it's opened there. Neither is there after a restart.
+#[cfg(target_os = "macos")]
+fn running_from_a_temporary_copy() -> bool {
+    std::env::current_exe().is_ok_and(|exe| {
+        let exe = exe.to_string_lossy();
+        exe.contains("/AppTranslocation/") || exe.starts_with("/Volumes/")
+    })
+}
+
+/// Whether the computer still has wisperChad down to start with it. Installing an update by hand
+/// runs the old version's uninstaller, which takes it off on Windows.
+#[cfg(windows)]
+fn has_startup_entry(app: &AppHandle) -> bool {
+    use windows::core::{w, PCWSTR};
+    use windows::Win32::System::Registry::{
+        RegGetValueW, HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE, RRF_RT_REG_SZ,
+    };
+    let name = &app.package_info().name;
+    let name: Vec<u16> = name.encode_utf16().chain(Some(0)).collect();
+    let places = [HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE];
+    places.into_iter().any(|root| {
+        let mut size = 0u32;
+        let status = unsafe {
+            RegGetValueW(
+                root,
+                w!("Software\\Microsoft\\Windows\\CurrentVersion\\Run"),
+                PCWSTR(name.as_ptr()),
+                RRF_RT_REG_SZ,
+                None,
+                None,
+                Some(&mut size),
+            )
+        };
+        status.is_ok()
+    })
+}
+
+/// The launch agent has to name the app where it is now, so one written while macOS ran a
+/// temporary copy, or before the app was moved, counts as missing.
+#[cfg(target_os = "macos")]
+fn has_startup_entry(app: &AppHandle) -> bool {
+    let (Some(home), Ok(exe)) = (
+        std::env::var_os("HOME"),
+        std::env::current_exe().and_then(|exe| exe.canonicalize()),
+    ) else {
+        return false;
+    };
+    let agent = PathBuf::from(home)
+        .join("Library/LaunchAgents")
+        .join(format!("{}.plist", app.package_info().name));
+    std::fs::read_to_string(agent)
+        .is_ok_and(|text| text.contains(&format!("<string>{}</string>", exe.display())))
+}
+
+#[cfg(target_os = "linux")]
+fn has_startup_entry(app: &AppHandle) -> bool {
+    app.autolaunch().is_enabled().unwrap_or(true)
 }
 
 /// Called while the user is recording a new hotkey in Settings, so pressing the current
@@ -1482,6 +1557,7 @@ pub fn run() {
             let _ = settings.save(&config_dir);
             let stay_hidden = settings.launch_on_startup == "hidden"
                 && std::env::args().any(|arg| arg == AUTOSTART_FLAG);
+            let launch = settings.launch_on_startup.clone();
             app.manage(AppState {
                 settings: Mutex::new(settings),
                 config_dir,
@@ -1501,6 +1577,13 @@ pub fn run() {
                 reading: Mutex::new(None),
                 reply_window: Mutex::new(screen::Active::default()),
             });
+            // The setting only writes the startup entry when it changes, so an entry that's gone
+            // missing since is put back here.
+            if launch != "off" && !has_startup_entry(&handle) {
+                if let Err(e) = set_launch_on_startup(&handle, &launch) {
+                    applog::write(&e);
+                }
+            }
 
             create_pill_window(&handle)?;
             let chord_handle = handle.clone();

@@ -255,13 +255,13 @@ licenses. The log only records errors, never what you say or what's on your scre
 
 ## Choosing models
 
-You don't have to: setup recommends one of three presets for your computer.
+You don't have to: setup recommends Light for almost every computer, and Transcription only for one with under 8 GB of memory.
 
 | Preset | Recommended for | Listens with | Writes with |
 |---|---|---|---|
 | Transcription only | Under 8 GB of memory | Parakeet v2 | Nothing: it types what you say, with no clean-up and no replies |
-| Light | Basic computers with no graphics card | Parakeet v2 | Qwen3.5 2B |
-| Balanced | A graphics card with 6 GB of memory, and 6 GB of RAM | Parakeet v2 | Qwen3.5 4B |
+| Light | Every computer with 8 GB of memory or more, graphics card or not | Parakeet v2 | Qwen3.5 2B |
+| Balanced | Never picked for you. Choose it for a little more careful writing, with a graphics card with 6 GB of memory | Parakeet v2 | Qwen3.5 4B |
 
 To choose for yourself later, the **Models** page offers two of each:
 
@@ -269,8 +269,8 @@ To choose for yourself later, the **Models** page offers two of each:
 |---|---|---|---|
 | Speech | Parakeet TDT 0.6B v2 | 660 MB | You speak English. Fast on any computer, no graphics card needed |
 | Speech | Whisper Small (English) | 470 MB | You'd like an alternative to Parakeet |
-| Writing | Qwen3.5 4B | 3.4 GB | You have 6 GB of memory or more. The best results, and it reads screenshots |
-| Writing | Qwen3.5 2B | 2 GB | You have less memory. It can misread pictures, so check the draft |
+| Writing | Qwen3.5 2B | 2 GB | The one to start with: quick on any computer, and it reads screenshots, though it can misread a picture, so check the draft |
+| Writing | Qwen3.5 4B | 3.4 GB | You have a graphics card with 6 GB of memory and want a little more careful writing, a little slower |
 
 <details>
 <summary><b>More models, memory use and Ollama</b></summary>
@@ -320,6 +320,9 @@ wisperChad was built so that nothing you say or type has to leave your computer.
 - **The internet** is only used to download the models you pick (from Hugging Face or Ollama) and the
   writing engine (from llama.cpp's GitHub releases, checked against a fixed fingerprint before it runs).
   The writing engine is only reached on your own computer, at `localhost`.
+- **Feedback** is only sent when you write some on the About page and press Send. It carries what you
+  wrote, your email if you added it, the app's version and your system, and goes by email through
+  [Web3Forms](https://web3forms.com).
 - **No accounts, no analytics, no ads, no telemetry.**
 
 ## How it works
@@ -353,7 +356,7 @@ the tray icon.
 | Text typed at your cursor | Yes | Yes, with Accessibility allowed | Yes | No, it's left on the clipboard |
 | Writing on the graphics card | Vulkan | Metal | Vulkan | Vulkan |
 | Reply reads the open window's text | Yes | Web pages and Mail | No, the screenshot alone | No, the screenshot alone |
-| Mute speakers while recording | Yes | Yes, except speakers with no mute switch, like HDMI screens | No | No |
+| Mute speakers while recording | Yes | Yes, except a screen's own speakers over HDMI or DisplayPort | No | No |
 
 <details>
 <summary><b>Linux notes</b></summary>

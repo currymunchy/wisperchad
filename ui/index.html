@@ -238,6 +238,20 @@
         <button class="btn primary" data-link="donate">Donate</button>
       </div>
 
+      <div class="card about-feedback">
+        <h3>Send feedback</h3>
+        <p class="muted">Found a bug, or want something added? Write it here and it goes straight to the developer.</p>
+        <label for="feedback-text">Your feedback</label>
+        <textarea id="feedback-text" rows="4" maxlength="4000" placeholder="What happened, or what would you like it to do?"></textarea>
+        <label for="feedback-email">Your email <span class="muted small">optional, for a reply</span></label>
+        <input id="feedback-email" type="email" autocomplete="email" />
+        <div class="row">
+          <button class="btn primary" id="feedback-send">Send</button>
+          <span class="muted small" id="feedback-status" role="status"></span>
+        </div>
+        <p class="muted small">Sends only what you write here, your email if you add it, the app's version and whether it's on Windows, Mac or Linux. It's delivered by email through Web3Forms.</p>
+      </div>
+
       <div class="card about-folders">
         <div>
           <label>App data directory</label>

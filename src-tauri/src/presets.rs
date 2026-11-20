@@ -27,6 +27,10 @@ struct Tier {
     /// Whether it runs well enough on the processor alone. Balanced on a fast processor with no
     /// graphics card still took too long over a reply, so only the lighter ones do.
     runs_without_gpu: bool,
+    /// Whether setup may recommend it. Balanced is there for anyone who picks it, but Light's 2B
+    /// is quick on every computer and writes well enough for short replies, so Light is the pick
+    /// even where the 4B would fit.
+    recommendable: bool,
 }
 
 /// Below this much graphics memory, the bigger Whisper isn't worth what it takes.
@@ -41,20 +45,23 @@ const TIERS: [Tier; 3] = [
         summary: "Types what you say, exactly as heard. There's no writing model, so no clean-up and no replies. For computers that can't run one.",
         writing_model: None,
         runs_without_gpu: true,
+        recommendable: true,
     },
     Tier {
         id: "light",
         name: "Light",
-        summary: "For basic computers, no graphics card needed. Simpler writing, and a reply can take a while.",
+        summary: "For most computers, no graphics card needed. Quick, clear writing, though a reply takes longer without a graphics card.",
         writing_model: Some("qwen3.5:2b"),
         runs_without_gpu: true,
+        recommendable: true,
     },
     Tier {
         id: "balanced",
         name: "Balanced",
-        summary: "For most computers with a graphics card. Clear writing, ready in moments.",
+        summary: "For computers with a graphics card. A bigger writing model: a little more careful than Light, and slower.",
         writing_model: Some("qwen3.5:4b"),
         runs_without_gpu: false,
+        recommendable: false,
     },
 ];
 
@@ -104,10 +111,13 @@ fn fits(tier: &Tier, hw: &Hardware) -> bool {
     hw.ram_gb + LEEWAY_GB >= model.requirements.min_ram_gb && (enough_vram || tier.runs_without_gpu)
 }
 
-/// Every preset, with the strongest one this computer can run marked. Transcription only runs on
-/// anything, so there's always one.
+/// Every preset, with the strongest one this computer can run that setup may recommend marked.
+/// Transcription only runs on anything, so there's always one.
 pub fn for_computer(languages: &[String], hw: &Hardware) -> Vec<Preset> {
-    let recommended = TIERS.iter().rposition(|tier| fits(tier, hw)).unwrap_or(0);
+    let recommended = TIERS
+        .iter()
+        .rposition(|tier| tier.recommendable && fits(tier, hw))
+        .unwrap_or(0);
     TIERS
         .iter()
         .enumerate()
@@ -156,22 +166,29 @@ mod tests {
     }
 
     #[test]
-    fn a_16_gb_pc_with_an_rtx_3070_gets_parakeet_and_qwen_4b() {
+    fn a_16_gb_pc_with_an_rtx_3070_gets_parakeet_and_qwen_2b() {
         let p = recommended(&["en"], &computer(15.9, Some(8.0)));
-        assert_eq!(p.id, "balanced");
+        assert_eq!(p.id, "light");
         assert_eq!(p.speech_model, "parakeet-tdt-0.6b-v2");
-        assert_eq!(p.writing_model, Some("qwen3.5:4b"));
+        assert_eq!(p.writing_model, Some("qwen3.5:2b"));
     }
 
     #[test]
-    fn stronger_computers_get_stronger_writing_models() {
+    fn every_computer_with_room_for_a_writing_model_gets_light() {
         let id = |ram_gb, vram_gb| recommended(&["en"], &computer(ram_gb, vram_gb)).id;
         assert_eq!(id(8.0, None), "light");
         assert_eq!(id(32.0, None), "light");
         assert_eq!(id(16.0, Some(4.0)), "light");
-        assert_eq!(id(16.0, Some(6.0)), "balanced");
-        // There's no preset above Balanced.
-        assert_eq!(id(32.0, Some(12.0)), "balanced");
+        assert_eq!(id(16.0, Some(6.0)), "light");
+        assert_eq!(id(32.0, Some(12.0)), "light");
+    }
+
+    #[test]
+    fn balanced_can_still_be_picked_where_it_fits() {
+        let presets = for_computer(&codes(&["en"]), &computer(16.0, Some(8.0)));
+        let balanced = presets.iter().find(|p| p.id == "balanced").unwrap();
+        assert!(balanced.fits);
+        assert!(!balanced.recommended);
     }
 
     #[test]
@@ -189,9 +206,10 @@ mod tests {
 
     #[test]
     fn a_big_graphics_card_cant_make_up_for_too_little_memory() {
+        assert_eq!(recommended(&["en"], &computer(8.0, Some(12.0))).id, "light");
         assert_eq!(
-            recommended(&["en"], &computer(8.0, Some(12.0))).id,
-            "balanced"
+            recommended(&["en"], &computer(6.0, Some(12.0))).id,
+            "transcribe"
         );
     }
 

@@ -224,6 +224,8 @@ label { display: block; font-weight: 600; margin: 14px 0 4px; }
 .update-note button:hover { color: var(--text); }
 #view-about .card + .card { margin-top: 16px; }
 .about-support p, .about-credits p { margin: 0 0 14px; }
+.about-feedback h3 + p { margin: 0 0 4px; }
+.about-feedback p.small { margin: 12px 0 0; }
 .about-credits ul { margin: 0 0 16px; padding-left: 20px; color: var(--muted); font-size: 14px; }
 .licenses { white-space: pre-wrap; overflow-wrap: anywhere; font: 12px/1.5 var(--mono); color: var(--muted); }
 #licenses-back { margin-bottom: 20px; }
