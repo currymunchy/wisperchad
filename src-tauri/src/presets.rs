@@ -42,7 +42,7 @@ const TIERS: [Tier; 3] = [
     Tier {
         id: "transcribe",
         name: "Transcription only",
-        summary: "Types what you say, exactly as heard. There's no writing model, so no clean-up and no replies. For computers that can't run one.",
+        summary: "Types what you say, with numbers as digits and stutters taken out. There's no writing model, so no other clean-up and no replies. For computers that can't run one.",
         writing_model: None,
         runs_without_gpu: true,
         recommendable: true,

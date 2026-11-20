@@ -139,7 +139,7 @@ function customLists() {
       <input type="radio" name="llm" value="" ${setup.writing ? "" : "checked"} />
       <span>
         <span class="model-name">None (transcription only)</span>
-        <span class="model-desc">Types what you say, exactly as heard, with no clean-up and no replies.</span>
+        <span class="model-desc">Types what you say, with numbers as digits and stutters taken out, but no other clean-up and no replies.</span>
       </span>
     </label>
     ${writingModels().map((m) => customRow("llm", m, setup.writing)).join("")}`;

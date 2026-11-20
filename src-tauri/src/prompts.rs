@@ -438,7 +438,8 @@ pub fn tone_line(tone: &str) -> &'static str {
 
 const TIDY_UP: &str = "Remove filler words (um, uh, like, you know), fix punctuation, \
 capitalisation and obvious speech-recognition mistakes, and apply self-corrections (\"no wait, I \
-mean Tuesday\" -> keep only Tuesday).";
+mean Tuesday\" -> keep only Tuesday). When the speaker breaks off a sentence and starts it again, \
+keep only the new start (\"we were going to, we're launching it\" -> \"We're launching it\").";
 
 /// Dictation that asks for something, like "make me a document that says...", is what the speaker
 /// is typing. Sent bare, it read as a request, and the model refused it or did it.

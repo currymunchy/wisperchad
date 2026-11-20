@@ -245,6 +245,7 @@ Translation uses the writing model, so check the result like any draft.
 | **Microphone** | Use one other than your computer's default. |
 | **Mute my speakers while recording** | On by default, so music or videos don't end up in your dictation. |
 | **Launch on startup** | Start with your computer, with the window showing or hidden in the tray. |
+| **Clean up dictation** | On by default. Takes out stutters and ums, and with a writing model, fixes punctuation and keeps only the new start of a sentence you began again. Off, dictation is typed as heard, with numbers as digits. |
 | **Auto submit dictation** | Off by default. Presses Enter after a dictation, which sends it in most chat apps. Replies are never sent for you. |
 | **Your name** | Lets replies tell your messages from theirs, and sign off as you. |
 | **Background** | White, black, or match your computer. |

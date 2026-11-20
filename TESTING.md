@@ -212,6 +212,8 @@ Run through this before a release. Automated unit tests: `cd src-tauri && cargo 
 - [ ] Speakers you muted yourself stay muted afterwards
 - [ ] Dictating "my number is nine one two three four five six seven", "twenty five dollars", "fifty percent"
   and "at five thirty" types 91234567, $25, 50% and 5:30, while "one of them" and "two kids" stay words
+- [ ] Dictating with a stutter, like "I I I think we should, we should go" or "we were going to, we're going to
+  launch it", types the sentence once, while "I had had enough" keeps both; with Clean up off, it's typed as heard
 - [ ] With Launch on startup on, install the next version over this one: wisperChad still starts after a restart
 - [ ] Auto submit presses Enter after a dictation, in a real chat box, with the words already in it
 - [ ] Auto submit never presses Enter after a reply

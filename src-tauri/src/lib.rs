@@ -23,6 +23,7 @@ mod screen;
 mod settings;
 mod speakers;
 mod stt;
+mod stutter;
 mod window_text;
 
 use serde::Serialize;
@@ -578,11 +579,13 @@ async fn run_pipeline(app: &AppHandle, mode: Mode) -> anyhow::Result<Option<Stri
     if transcript.is_empty() {
         return Ok(None);
     }
-    // Numbers said in words are typed as digits, before clean-up, which keeps to what was said.
-    let transcript = if english {
-        numbers::to_digits(&transcript)
-    } else {
-        transcript
+    // Numbers said in words are typed as digits, before clean-up, which keeps to what was said. With
+    // clean-up on, a stammer's repeats and cut-off words come out too, even when the writing
+    // model's version is thrown out. Off, what was heard is typed as it was.
+    let transcript = match (english, s.cleanup_enabled) {
+        (true, true) => stutter::smooth(&numbers::to_digits(&transcript)),
+        (true, false) => numbers::to_digits(&transcript),
+        _ => transcript,
     };
 
     let output = match (mode, s.llm_model.as_deref()) {

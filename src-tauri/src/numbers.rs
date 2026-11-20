@@ -85,7 +85,7 @@ fn big_ordinal(word: &str) -> Option<u64> {
         .map(|(_, v)| *v)
 }
 
-fn number_word(word: &str) -> bool {
+pub(crate) fn number_word(word: &str) -> bool {
     ones(word).is_some()
         || teens(word).is_some()
         || tens(word).is_some()
@@ -97,11 +97,11 @@ fn number_word(word: &str) -> bool {
 
 /// A word as written, split from the punctuation around it, and the space after it.
 #[derive(Clone)]
-struct Token {
-    lead: String,
-    core: String,
-    trail: String,
-    space: String,
+pub(crate) struct Token {
+    pub(crate) lead: String,
+    pub(crate) core: String,
+    pub(crate) trail: String,
+    pub(crate) space: String,
 }
 
 impl Token {
@@ -114,12 +114,12 @@ impl Token {
         }
     }
 
-    fn word(&self) -> String {
+    pub(crate) fn word(&self) -> String {
         self.core.to_lowercase().replace('\u{2019}', "'")
     }
 }
 
-fn tokens(text: &str) -> Vec<Token> {
+pub(crate) fn tokens(text: &str) -> Vec<Token> {
     let start = text.len() - text.trim_start().len();
     let mut out = Vec::new();
     let mut rest = &text[start..];
